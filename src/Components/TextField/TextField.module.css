@@ -1,0 +1,54 @@
+.container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex: 1;
+  margin-bottom: 10%;
+}
+
+input {
+  width: 600px;
+  height: 70px;
+  border-radius: 10px;
+  outline: none;
+  border: none;
+  font-size: 28px;
+  font-weight: 400;
+  padding: 20px;
+}
+.inputContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  border: 0.5px solid #777777a3;
+  padding: 0 10px;
+  border-radius: 10px;
+  box-shadow: 1px 2px 7px #777;
+}
+img {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  left: 30%;
+  cursor: pointer;
+}
+.waveAnimation {
+  position: absolute;
+  top: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.loadingWrapper{
+  position: absolute;
+  top: 90%;
+}
+.loading{
+  font-size: 20px;
+  color: #3f3f3f;
+}

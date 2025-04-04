@@ -1,0 +1,29 @@
+
+*{
+  padding: 0;
+  margin: 0;
+  text-align: right;
+}
+
+
+body{
+text-align: right;
+  
+}
+
+.container{
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  align-items: center;
+}
+.response{
+  font-size: 17px;
+  max-width: 50%;
+  line-height: 1.3;
+
+  p{
+    color: #3c3c3c;
+  }
+}
