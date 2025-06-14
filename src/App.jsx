@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import "./App.css";
 import TextField from "./Components/TextField/TextField";
 import Header from "./Components/Header/Header";
-import Suggestions from "./Components/Suggestions/Suggestions";
+
 
 function App() {
   const [aiResponse, setAiResponse] = useState("");
@@ -18,7 +18,7 @@ function App() {
           <p>{aiResponse}</p>
         </div>
       )}
-      <Suggestions />
+
     </div>
   );
 }

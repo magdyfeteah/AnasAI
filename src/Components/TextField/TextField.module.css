@@ -6,6 +6,7 @@
   justify-content: center;
   position: relative;
   flex: 1;
+
   margin-bottom: 10%;
 }
 
@@ -52,3 +53,10 @@ img {
   font-size: 20px;
   color: #3f3f3f;
 }
+
+.onOFF {
+cursor: pointer;
+align-self: flex-end;
+margin-left: 20px;
+}
+

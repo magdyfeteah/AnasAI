@@ -1,27 +1,44 @@
-import React, { useState, useEffect } from "react";
-import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
-import mic from "../../assets/5d81be16a7e133c190ac5229026d8645.png";
+import React, { useState, useEffect, useRef } from "react";
+import SpeechRecognition, {
+  useSpeechRecognition,
+} from "react-speech-recognition";
+import mic from "../../assets/mic.png";
 import styles from "./TextField.module.css";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 function TextField({ onAiResponse }) {
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isAudioPlaying, setIsAudioPlaying] = useState(false); // حالة لتتبع إذا كان الصوت قيد التشغيل
-  const { transcript, listening, resetTranscript, browserSupportsSpeechRecognition } = useSpeechRecognition();
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [quantumOn, setQuantumOn] = useState(false);
 
+  const {
+    transcript,
+    listening,
+    resetTranscript,
+    browserSupportsSpeechRecognition,
+  } = useSpeechRecognition();
+
+  const queryClient = useQueryClient();
+  const hasSent = useRef(false);
+
+  // تحديث النص أثناء التسجيل
   useEffect(() => {
     if (listening) {
       setInputText(transcript);
+      hasSent.current = false; // نعيد تهيئة الفلاج
     }
   }, [transcript, listening]);
 
+  // إرسال الرسالة عند انتهاء التسجيل
   useEffect(() => {
-    if (!listening && transcript.trim()) {
+    if (!listening && transcript.trim() && !hasSent.current) {
       sendToAI(transcript);
+      hasSent.current = true;
       resetTranscript();
     }
-  }, [transcript, listening]);
+  }, [listening]);
 
   const handleStartListening = () => {
     SpeechRecognition.startListening({ continuous: true, language: "ar" });
@@ -31,9 +48,7 @@ function TextField({ onAiResponse }) {
     SpeechRecognition.stopListening();
   };
 
-  const handleInputChange = (e) => {
-    setInputText(e.target.value);
-  };
+  const handleInputChange = (e) => setInputText(e.target.value);
 
   const handleSubmit = async (e) => {
     if (e.key === "Enter" && inputText.trim()) {
@@ -42,67 +57,127 @@ function TextField({ onAiResponse }) {
     }
   };
 
-  // دالة إرسال السؤال إلى الذكاء الاصطناعي
   const sendToAI = async (text) => {
     if (!text.trim()) return;
-    
+
     setIsLoading(true);
+    onAiResponse(""); // تصفير الرد القديم
+
+    const queryKey = ["question", text];
+    const cachedData = queryClient.getQueryData(queryKey);
+    if (cachedData) {
+      console.log("📦 تم جلب الرد من الكاش");
+      onAiResponse(
+        cachedData.prediction || "لم أفهم سؤالك، هل يمكنك توضيحه أكثر؟"
+      );
+      if (cachedData.audio) playBase64Audio(cachedData.audio);
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const response = await fetch("http://localhost:8000/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ question: text }),
-      });
+      const response = await fetch(
+        quantumOn
+          ? "http://192.168.1.2:8000/predict/text/quantum"
+          : "http://192.168.1.2:8000/predict/text",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: text }),
+        }
+      );
 
       if (!response.ok) {
+        console.error(`❌ خطأ في استجابة النص: ${response.status}`);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
-      console.log("User Question:", text);
-      console.log("AI Response:", data);
+      let fullText = "";
 
-      onAiResponse(data.prediction || "لم أفهم سؤالك، هل يمكنك توضيحه أكثر؟");
+      if (quantumOn) {
+        console.log("📡 الرد من نموذج Quantum");
+        
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
 
-      if (data.audio) {
-        playBase64Audio(data.audio);
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          fullText += chunk;
+          onAiResponse((prev) => prev + chunk);
+          
+          
+        }
+      } else {
+        console.log("📡 الرد من نموذج العادي ");
+        const text = await response.text();
+        fullText = text;
+        onAiResponse(text);
+      }
+console.log(`fullText ${fullText}`);
+      // تحويل النص لصوت
+      const audioResponse = await fetch("http://192.168.1.2:8000/predict/audio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answer: fullText }),
+      });
+
+      if (!audioResponse.ok) {
+        throw new Error(`Audio error! status: ${audioResponse.status}`);
       }
 
+      const base64Audio = audioResponse.body.getReader();
+      
+      
+      const result = [];
+      const decoder = new TextDecoder("utf-8");
+
+      while (true) {
+        const { done, value } = await base64Audio.read();
+        if (done) break;
+        result.push(decoder.decode(value, { stream: true }));
+      }
+
+      const base64String = result.join("");
+      if (!base64String) throw new Error("لم يتم استلام صوت من الخادم");
+
+      playBase64Audio(base64String);
+
+      queryClient.setQueryData(queryKey, {
+        prediction: fullText,
+        audio: base64String,
+      });
     } catch (error) {
-      console.error("Error fetching AI response:", error);
-      onAiResponse("عذرًا، حدث خطأ أثناء محاولة الاتصال بالمساعد. يرجى التأكد من تشغيل خدمة الذكاء الاصطناعي.");
+      console.error("❌ خطأ أثناء التواصل مع الخادم:", error);
+      onAiResponse("عذرًا، حدث خطأ أثناء محاولة الاتصال بالمساعد.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // دالة لتحويل وتشغيل الصوت
   const playBase64Audio = (base64Audio) => {
-    const audioBlob = base64ToBlob(base64Audio, "audio/mp3"); // تحويل Base64 إلى Blob
-    const audioUrl = URL.createObjectURL(audioBlob); // إنشاء رابط للصوت
-    const audio = new Audio(audioUrl); // إنشاء عنصر الصوت
-    audio.play(); // تشغيل الصوت
+    const cleanBase64 = base64Audio.replace(/[^A-Za-z0-9+/=]/g, "");
+    const audioBlob = base64ToBlob(cleanBase64, "audio/mp3");
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const audioEl = new Audio(audioUrl);
 
-    // تغيير الحالة لتفعيل الأنيميشن
+    audioEl.play().catch((error) =>
+      console.error("خطأ في تشغيل الصوت:", error)
+    );
+
     setIsAudioPlaying(true);
-
-    // إيقاف الأنيميشن بعد نهاية الصوت
-    audio.onended = () => {
-      setIsAudioPlaying(false);
-    };
+    audioEl.onended = () => setIsAudioPlaying(false);
   };
 
-  // دالة لتحويل Base64 إلى Blob
   const base64ToBlob = (base64, mimeType) => {
-    const byteCharacters = atob(base64); // فك تشفير Base64
+    const byteCharacters = atob(base64);
     const byteArrays = [];
-    
+
     for (let i = 0; i < byteCharacters.length; i++) {
       byteArrays.push(byteCharacters.charCodeAt(i));
     }
-    
+
     return new Blob([new Uint8Array(byteArrays)], { type: mimeType });
   };
 
@@ -121,42 +196,43 @@ function TextField({ onAiResponse }) {
           placeholder="كيف يمكنني مساعدتك..."
           disabled={isLoading}
         />
+         <img
+        src={quantumOn ? "/on-button.png" : "/off-button.png"}
+        alt=""
+        onClick={() => setQuantumOn((prev) => !prev)}   
+        className={styles.onOFF}
+      />
         <img
           src={mic}
           alt="Microphone"
           onMouseDown={handleStartListening}
           onMouseUp={handleStopListening}
           style={{ cursor: "pointer", opacity: isLoading ? 0.5 : 1 }}
-          disabled={isLoading}
         />
       </div>
-      
-      {/* تفعيل الأنيميشن عند تشغيل الصوت */}
+     
       {isAudioPlaying && (
         <div className={styles.waveAnimation}>
-          <h3>أنس يتحدث</h3>
+          <h3>انس يتحدث</h3>
           <DotLottieReact
             src="/voice-wave.json"
             loop
             autoplay
-            style={{ width: "300px", height: "160px", opacity: 1 }}
+            style={{ width: "300px", height: "160px" }}
           />
         </div>
       )}
-
-      {isLoading && 
-      <div className={styles.loadingWrapper}> 
-         <DotLottieReact
+      {isLoading && (
+        <div className={styles.loadingWrapper}>
+          <DotLottieReact
             src="/loading.json"
             loop
             autoplay
-            style={{ width: "200px", height: "160px", opacity: 1 }}
+            style={{ width: "200px", height: "160px" }}
           />
-      <p className={styles.loading}>يتم ارسال الرسالة و ننتظر الاجابة من أنس...</p>
-      
-      </div>
-      }
-      
+          <p className={styles.loading}>يتم ارسال الرسالة و ننتظر الاجابة...</p>
+        </div>
+      )}
     </div>
   );
 }
