@@ -12,23 +12,24 @@
 
 input {
   width: 600px;
-  height: 70px;
-  border-radius: 10px;
+  
+  border-radius: 50px;
   outline: none;
   border: none;
   font-size: 28px;
   font-weight: 400;
   padding: 20px;
+  background-color: #E9ECED;
 }
 .inputContainer {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-
-  border: 0.5px solid #777777a3;
-  padding: 0 10px;
-  border-radius: 10px;
-  box-shadow: 1px 2px 7px #777;
+    display: flex
+;
+    justify-content: center;
+    align-items: center;
+    border: 0.5px solid #777777a3;
+    padding: 0 10px;
+    border-radius: 50px;
+    box-shadow: 1px 2px 7px #77777761
 }
 img {
   width: 50px;
@@ -44,19 +45,37 @@ img {
   flex-direction: column;
   justify-content: center;
   align-items: center;
+
+  h3{
+    color: #125766;
+  }
 }
-.loadingWrapper{
+.loadingWrapper {
   position: absolute;
-  top: 90%;
+  top: 60%;
 }
-.loading{
+.loading {
   font-size: 20px;
-  color: #3f3f3f;
+  color: #125766;
 }
 
 .onOFF {
-cursor: pointer;
-align-self: flex-end;
-margin-left: 20px;
-}
+  cursor: pointer;
 
+  margin-left: 20px;
+  position: absolute;
+  left: 20%;
+}
+.mic{
+  cursor: pointer;
+  opacity: .5;
+transition: all .2s linear;
+width: 35px;
+height: 35px;
+object-fit: cover;
+padding-left: 10px;
+  &:hover{
+    opacity: 1;
+    
+  }
+}

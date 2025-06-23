@@ -12,6 +12,7 @@ function TextField({ onAiResponse }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [quantumOn, setQuantumOn] = useState(false);
+  const [sendRequest, setSendRequest] = useState(false);
 
   const {
     transcript,
@@ -19,6 +20,8 @@ function TextField({ onAiResponse }) {
     resetTranscript,
     browserSupportsSpeechRecognition,
   } = useSpeechRecognition();
+
+const audioRef = useRef(null);
 
   const queryClient = useQueryClient();
   const hasSent = useRef(false);
@@ -59,7 +62,13 @@ function TextField({ onAiResponse }) {
 
   const sendToAI = async (text) => {
     if (!text.trim()) return;
-
+      if (audioRef.current) {
+    audioRef.current.pause();
+    audioRef.current.currentTime = 0;
+    audioRef.current = null;
+  }
+    setIsAudioPlaying(false)
+    setSendRequest(true)
     setIsLoading(true);
     onAiResponse(""); // تصفير الرد القديم
 
@@ -78,8 +87,8 @@ function TextField({ onAiResponse }) {
     try {
       const response = await fetch(
         quantumOn
-          ? "http://192.168.1.2:8000/predict/text/quantum"
-          : "http://192.168.1.2:8000/predict/text",
+          ? "http://localhost:8000/predict/text/quantum"
+          : 'http://localhost:8000/predict/text',
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -96,7 +105,7 @@ function TextField({ onAiResponse }) {
 
       if (quantumOn) {
         console.log("📡 الرد من نموذج Quantum");
-        
+
         const reader = response.body.getReader();
         const decoder = new TextDecoder("utf-8");
 
@@ -106,8 +115,6 @@ function TextField({ onAiResponse }) {
           const chunk = decoder.decode(value, { stream: true });
           fullText += chunk;
           onAiResponse((prev) => prev + chunk);
-          
-          
         }
       } else {
         console.log("📡 الرد من نموذج العادي ");
@@ -115,21 +122,23 @@ function TextField({ onAiResponse }) {
         fullText = text;
         onAiResponse(text);
       }
-console.log(`fullText ${fullText}`);
+      console.log(`fullText ${fullText}`);
       // تحويل النص لصوت
-      const audioResponse = await fetch("http://192.168.1.2:8000/predict/audio", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answer: fullText }),
-      });
+      const audioResponse = await fetch(
+        "http://localhost:8000/predict/audio",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ answer: fullText }),
+        }
+      );
 
       if (!audioResponse.ok) {
         throw new Error(`Audio error! status: ${audioResponse.status}`);
       }
 
       const base64Audio = audioResponse.body.getReader();
-      
-      
+
       const result = [];
       const decoder = new TextDecoder("utf-8");
 
@@ -153,6 +162,8 @@ console.log(`fullText ${fullText}`);
       onAiResponse("عذرًا، حدث خطأ أثناء محاولة الاتصال بالمساعد.");
     } finally {
       setIsLoading(false);
+      setSendRequest(false)
+      setIsAudioPlaying(true)
     }
   };
 
@@ -161,13 +172,16 @@ console.log(`fullText ${fullText}`);
     const audioBlob = base64ToBlob(cleanBase64, "audio/mp3");
     const audioUrl = URL.createObjectURL(audioBlob);
     const audioEl = new Audio(audioUrl);
-
-    audioEl.play().catch((error) =>
-      console.error("خطأ في تشغيل الصوت:", error)
-    );
+ audioRef.current = audioEl;
+    audioEl
+      .play()
+      .catch((error) => console.error("خطأ في تشغيل الصوت:", error));
 
     setIsAudioPlaying(true);
-    audioEl.onended = () => setIsAudioPlaying(false);
+      audioEl.onended = () => {
+    setIsAudioPlaying(false);
+    audioRef.current = null; // تفريغ المرجع عند الانتهاء
+  };
   };
 
   const base64ToBlob = (base64, mimeType) => {
@@ -196,22 +210,22 @@ console.log(`fullText ${fullText}`);
           placeholder="كيف يمكنني مساعدتك..."
           disabled={isLoading}
         />
-         <img
-        src={quantumOn ? "/on-button.png" : "/off-button.png"}
-        alt=""
-        onClick={() => setQuantumOn((prev) => !prev)}   
-        className={styles.onOFF}
-      />
+        <img
+          src={quantumOn ? "/on-button.png" : "/off-button.png"}
+          alt=""
+          onClick={() => setQuantumOn((prev) => !prev)}
+          className={styles.onOFF}
+        />
         <img
           src={mic}
           alt="Microphone"
           onMouseDown={handleStartListening}
           onMouseUp={handleStopListening}
-          style={{ cursor: "pointer", opacity: isLoading ? 0.5 : 1 }}
+          className={styles.mic}
         />
       </div>
-     
-      {isAudioPlaying && (
+
+      {isAudioPlaying &&!sendRequest && (
         <div className={styles.waveAnimation}>
           <h3>انس يتحدث</h3>
           <DotLottieReact
