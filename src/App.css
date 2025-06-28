@@ -20,11 +20,17 @@ background-color: #E9ECED;
   align-items: center;
 }
 .response{
-  font-size: 17px;
+  font-size: 20px;
   width: 50%;
   line-height: 1.3;
   flex: 1;
   p{
     color: #3c3c3c;
   }
+}
+
+.ai-response{
+
+  color: #125766;
+  font-weight: bold;
 }

@@ -15,7 +15,7 @@ function App() {
       {aiResponse && (
         <div className="response">
           <strong>انس:</strong>
-          <p>{aiResponse}</p>
+          <p className="ai-response">{aiResponse}</p>
         </div>
       )}
 

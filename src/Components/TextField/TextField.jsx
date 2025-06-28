@@ -13,7 +13,7 @@ function TextField({ onAiResponse }) {
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [quantumOn, setQuantumOn] = useState(false);
   const [sendRequest, setSendRequest] = useState(false);
-
+ const [isHolding, setIsHolding] = useState(false);
   const {
     transcript,
     listening,
@@ -45,12 +45,14 @@ const audioRef = useRef(null);
 
   const handleStartListening = () => {
     SpeechRecognition.startListening({ continuous: true, language: "ar" });
+    setIsHolding(true);
   };
 
   const handleStopListening = () => {
     SpeechRecognition.stopListening();
+    setIsHolding(false);
   };
-
+ const handleMouseLeave = () => setIsHolding(false); 
   const handleInputChange = (e) => setInputText(e.target.value);
 
   const handleSubmit = async (e) => {
@@ -86,9 +88,7 @@ const audioRef = useRef(null);
 
     try {
       const response = await fetch(
-        quantumOn
-          ? "http://localhost:8000/predict/text/quantum"
-          : 'http://localhost:8000/predict/text',
+       'http://localhost:8000/predict/text',
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -207,6 +207,7 @@ const audioRef = useRef(null);
           value={inputText}
           onChange={handleInputChange}
           onKeyDown={handleSubmit}
+          
           placeholder="كيف يمكنني مساعدتك..."
           disabled={isLoading}
         />
@@ -216,13 +217,17 @@ const audioRef = useRef(null);
           onClick={() => setQuantumOn((prev) => !prev)}
           className={styles.onOFF}
         />
+        <div className={`${styles.micTooltip} ${isHolding ? styles.holding : ""}`}>
+
         <img
           src={mic}
           alt="Microphone"
           onMouseDown={handleStartListening}
           onMouseUp={handleStopListening}
+          onMouseLeave={handleMouseLeave}
           className={styles.mic}
-        />
+          />
+          </div>
       </div>
 
       {isAudioPlaying &&!sendRequest && (
